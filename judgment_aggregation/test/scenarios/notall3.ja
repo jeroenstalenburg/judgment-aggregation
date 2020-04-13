@@ -1,0 +1,11 @@
+c An example judgment aggregation scenario
+c with a CNF formula as restraint
+p ja 3 3
+n 1 "p"
+n 2 "q"
+n 3 "r"
+i in cnf notall3.cnf
+i out cnf notall3.cnf
+v 1 1 0
+vm 2 1 0 1
+vm 9 0 1 1

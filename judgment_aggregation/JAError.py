@@ -1,0 +1,2 @@
+class JAError(Exception):
+    pass
