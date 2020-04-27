@@ -75,6 +75,7 @@ class Data:
                 type(self).__name__)
 
     def finalise(self):
+        """Execute an eventual finalisation function."""
         pass
 
     def throw_error(self, message):
