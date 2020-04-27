@@ -42,6 +42,7 @@ class Data:
             fun = self.__getattribute__("load_" + contents[0] + "_line")
             fun(*contents[1:])
         self.lines = 0
+        self.finalise()
 
     def load_c_line(self, *args):
         """Load a 'c' line; 'c' lines are comments, thus do nothing"""
@@ -72,6 +73,9 @@ class Data:
                 "Initialize the object by passing a file to the constructor or"
                 " by using one of the initialisation functions." %
                 type(self).__name__)
+
+    def finalise(self):
+        pass
 
     def throw_error(self, message):
         """Throw an error while constructing the Data object"""
