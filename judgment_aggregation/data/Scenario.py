@@ -1,6 +1,6 @@
 from .Data import Data
 from .constraints.CNF import CNF
-from ..JAError import JAError
+from .constraints.Constraint import Constraint
 
 
 class Scenario(Data):
@@ -9,6 +9,7 @@ class Scenario(Data):
         self.agendas_loaded = 0
         self.voters = 0
         self.issue_amount = 0
+        self.auxiliary_amount = 0
         self.agenda_amount = 0
         self.voter_amount = 0
         self.issues = []
@@ -23,10 +24,11 @@ class Scenario(Data):
                 "  Voters, Agendas: %s \n}" %
                 (self.issues, list(zip(self.voters_per_agenda, self.agendas))))
 
-    def initialise_data(self, issue_amount, agenda_amount):
+    def initialise_data(self, issue_amount, agenda_amount, auxiliary_amount=0):
         """Initialise the data for the class for future use"""
         self.issue_amount = issue_amount
         self.agenda_amount = agenda_amount
+        self.auxiliary_amount = auxiliary_amount
         self.voters = 0
         self.agendas_loaded = 0
         self.issues = [''] * self.issue_amount
@@ -40,18 +42,12 @@ class Scenario(Data):
                              "voters in the middle of a ja file")
         if args[0] != "ja":
             self.throw_error("The given file is not a scenario file")
-        if len(args) != 3:
-            self.throw_error("Expected two arguments after 'p ja'")
-        self.initialise_data(int(args[1]), int(args[2]))
-
-    def add_issue_name(self, name, index=None):
-        """"""
-        self.check_initialised()
-        if index is None:
-            self.issues.append(name)
-            self.issue_amount += 1
+        if len(args) == 4:
+            self.initialise_data(int(args[1]), int(args[2], int(args[3])))
+        elif len(args) == 3:
+            self.initialise_data(int(args[1]), int(args[2]))
         else:
-            self.issues[index - 1] = name
+            self.throw_error("Expected two or three arguments after 'p ja'")
 
     def load_n_line(self, *args):
         try:
@@ -76,27 +72,6 @@ class Scenario(Data):
         else:
             self.throw_error("Invalid constraint type '%s'" % args[1])
 
-    def add_constraint(self, constraint, inout="in/out"):
-        """Add a constraint to the scenario; the given constraint has to
-        be of the constraint class or its subclasses.
-        The inout parameter is used to tell if the constraint is for the
-        voter agenda's or/and for the collective agenda's"""
-        pass
-
-    def add_agenda(self, agenda, voter_amount=1):
-        """"""
-        self.check_initialised()
-        if (not all([a == 1 or a == 0 for a in agenda])):
-            self.throw_error("Agenda should consist of only 0's, 1's or "
-                             "booleans")
-        if (self.agendas_loaded >= self.agenda_amount):
-            self.throw_error("May not add more agendas than specified while "
-                             "initialising the object")
-        self.agendas[self.agendas_loaded] = agenda
-        self.voters_per_agenda[self.agendas_loaded] = voter_amount
-        self.agendas_loaded += 1
-        self.voters += voter_amount
-
     def load_v_line(self, *args):
         """Load a 'v' line; 'v' lines are for setting the agenda
         of a single voter.
@@ -109,23 +84,95 @@ class Scenario(Data):
         vm <voter amount> 1 1 0 1"""
         try:
             voters = int(args[0])
-        except ValueError as e:
+        except ValueError:
             self.throw_error("Amount of voters '%s' needs to be an integer" %
                              args[0])
         try:
             agenda = list(map(lambda x: bool(int(x)), args[1:]))
-        except ValueError as e:
+        except ValueError:
             self.throw_error(
                 "Agendas in ja files should be encoded in 0's and 1's; "
                 "This is not the case")
         self.add_agenda(agenda, voters)
 
-    def merge_data(self, other):
-        pass
+    def add_issue_name(self, name, index=None):
+        """"""
+        self.check_initialised()
+        if index is None:
+            self.issues.append(name)
+            self.issue_amount += 1
+        else:
+            self.issues[index - 1] = name
 
+    def add_constraint(self, constraint, binding="in/out"):
+        """Add a constraint to the scenario; the given constraint has to
+        be of the constraint class or its subclasses.
+        The binding parameter is used to tell if the constraint is for the
+        voter agenda's or/and for the collective agenda's"""
+        if not isinstance(constraint, Constraint):
+            self.throw_error(
+                "Given constraint object with class '%s' is not from the "
+                "constraint class or one of its subclasses" % type(constraint))
+        if binding == "in/out":
+            self.add_individual_constraint(constraint)
+            self.add_collective_constraint(constraint)
+        elif binding == "in":
+            self.add_individual_constraint(constraint)
+        elif binding == "out":
+            self.add_collective_constraint(constraint)
+        else:
+            self.throw_error("Constraint binding should be equal to "
+                             "'in', 'out', or 'in/out'")
 
-# if __name__ == "__main__":
-#     data = ScenarioData("notall3scenari.ja")
-#     # data.load_from_file()
-#     print(data)
-#     # data.load_string("jaaaaaaaaaa\nneeeee")
+    def add_individual_constraint(self, constraint):
+        """Add a constraint for the individual agendas"""
+        var_amount = constraint.get_var_amount()
+        if self.issue_amount != var_amount:
+            self.throw_error("Individual constraints should have the same "
+                             "amount of variables as the scenario has issues")
+        self.collective_constraints.append(constraint)
+
+    def add_collective_constraint(self, constraint):
+        """Add a constraint for the resultant, collective agendas"""
+        var_amount = constraint.get_var_amount()
+        if self.auxiliary_amount + self.issue_amount != var_amount:
+            self.throw_error("Collective constraint should have the same "
+                             "amount of variables as the scenario has "
+                             "issues and auxiliary variables")
+        self.collective_constraints.append(constraint)
+
+    def add_agenda(self, agenda, voter_amount=1):
+        """Add an agenda to the scenario."""
+        self.check_initialised()
+        if (not all([a == 1 or a == 0 for a in agenda])):
+            self.throw_error("Agenda should consist of only 0's, 1's or "
+                             "booleans")
+        if (self.agendas_loaded >= self.agenda_amount):
+            self.throw_error("May not add more agendas than specified while "
+                             "initialising the object")
+        if (len(agenda) < self.issue_amount):
+            self.throw_error(
+                "Agenda should have an opinion about every issue; "
+                "The length of the agenda is too low")
+        if (len(agenda) > self.issue_amount):
+            self.throw_error(
+                "Agenda should not have more opinions than there are on the "
+                "agenda; The length of the agenda is too high")
+        for constraint in self.individual_constraints:
+            if not constraint.check_agenda(agenda):
+                self.throw_error("Agenda '%s' is not valid according to the "
+                                 "individual constraints of this scenario" %
+                                 agenda)
+        self.agendas[self.agendas_loaded] = agenda
+        self.voters_per_agenda[self.agendas_loaded] = voter_amount
+        self.agendas_loaded += 1
+        self.voters += voter_amount
+
+    def get_agendas(self, also_get_voter_amounts=True):
+        """Return all agendas of the current scenario.
+        if also_get_voter_amounts is true, then returned is the tuple:
+        (agendas, voter amounts)"""
+        if also_get_voter_amounts:
+            return self.agendas, self.voters_per_agenda
+        else:
+            return self.agendas
