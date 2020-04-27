@@ -1,0 +1,15 @@
+c An example judgment aggregation scenario
+c which gives different results for the kemeny and slater procedures
+p ja 8 3
+n 1 "p"
+n 2 "q1"
+n 3 "q2"
+n 4 "r1"
+n 5 "r2"
+n 6 "r3"
+n 7 "phi1"
+n 8 "phi2"
+i in/out cnf kemenyslaterdiff.cnf
+v     1 0 0 0 0 0 1 1
+vm 10 0 1 1 0 0 0 1 1
+vm 10 0 0 0 1 1 1 1 1
