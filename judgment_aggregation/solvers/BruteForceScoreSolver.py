@@ -4,26 +4,32 @@ import math
 
 
 class BruteForceScoreSolver(Solver):
-    def generate_all_valid_agendas(self):
-        """Generate all valid agendas according to the current scenario."""
+    def generate_all_valid_judgments(self):
+        """Generate all valid judgments according to the current scenario."""
         var_amount = (self.scenario.auxiliary_amount +
                       self.scenario.issue_amount)
         if self.scenario.collective_constraints == []:
             return map(list, itertools.product([0, 1], repeat=var_amount))
         else:
             first_constraint = self.scenario.collective_constraints[0]
-            for agenda in first_constraint.generate_all_valid_agendas():
+            for judgment in first_constraint.generate_all_valid_judgments():
                 valid = True
                 for constraint in self.scenario.collective_constraints[1:]:
-                    if not constraint.check_agenda(agenda):
+                    if not constraint.check_judgment(judgment):
                         valid = False
                         break
                 if valid:
-                    yield agenda
+                    yield judgment
 
-    def solve(self, procedure='Kemeny', score_fun=None, init_fun=None):
+    def solve(self,
+              procedure='Kemeny',
+              score_fun=None,
+              init_fun=None,
+              quota=0.5):
         """Solve the judgment aggregation scenario using the given procedure.
         Returns true if at least one answer has been found."""
+        if procedure == "quota" or procedure == "majority":
+            return self.standard_solve(procedure, quota)
         self.answers = []
         best_score = math.inf
         if score_fun is None:
@@ -31,13 +37,13 @@ class BruteForceScoreSolver(Solver):
         if init_fun is None:
             init_fun = self.get_init_function(procedure)
         init_fun()
-        for agenda in self.generate_all_valid_agendas():
-            agenda_score = score_fun(agenda[:self.scenario.issue_amount])
-            if agenda_score > best_score:
+        for judgment in self.generate_all_valid_judgments():
+            judgment_score = score_fun(judgment[:self.scenario.issue_amount])
+            if judgment_score > best_score:
                 continue
-            elif agenda_score < best_score:
-                best_score = agenda_score
-                self.answers = [agenda.copy()]
+            elif judgment_score < best_score:
+                best_score = judgment_score
+                self.answers = [judgment.copy()]
             else:
-                self.answers.append(agenda.copy())
+                self.answers.append(judgment.copy())
         return self.answers != []

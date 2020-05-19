@@ -13,16 +13,31 @@ class Solver:
         self.answers = []
         self.score_vector = np.array([])
 
-    def solve(self, procedure=None, score_fun=None):
+    def solve(self,
+              procedure='Kemeny',
+              score_fun=None,
+              init_fun=None,
+              quota=0.5):
         """Solve the scenario, store the answers in self.answers and return
         True when a solution (not necessarily consistent) has been found"""
-        raise NotImplementedError()
+        if procedure == "quota" or procedure == "majority":
+            return self.standard_solve(procedure, quota)
+        else:
+            raise NotImplementedError()
+
+    def standard_solve(self, procedure, quota=0.5):
+        """Solve for the two standard procedures, quota and majority
+        (these procedures do not require """
+        if procedure == "quota":
+            return self.get_quota_rule_judgment(quota)
+        elif procedure == "majority":
+            return self.get_majority_judgment()
 
     def get_score_function(self, procedure):
         """Get the correct python score function depending on the given
         procedure"""
         if procedure == 'Kemeny' or procedure == 'Slater':
-            return lambda agenda: np.sum(self.score_vector * agenda)
+            return lambda judgment: np.sum(self.score_vector * judgment)
         else:
             raise JAError("No score function given and/or "
                           "given procedure '%s' is not a "
@@ -43,33 +58,34 @@ class Solver:
     def kemeny_init(self):
         """Set the score vector to be the correct score vector for the
         Kemeny procedure"""
-        agendas, voters_per_agenda = self.scenario.get_agendas()
-        print(np.array(agendas).T @ voters_per_agenda)
-        self.score_vector = -(np.array(agendas).T @ voters_per_agenda
-                              ) + np.sum(voters_per_agenda) / 2
+        judgments, judges_per_judgment = self.scenario.get_judgments()
+        self.score_vector = -(np.array(judgments).T @ judges_per_judgment
+                              ) + np.sum(judges_per_judgment) / 2
 
     def slater_init(self):
         """Set the score vector to be the correct score vector for the
         Kemeny procedure"""
-        agendas, voters_per_agenda = self.scenario.get_agendas()
-        self.score_vector = -np.array(self.get_majority_agenda()) + 0.5
+        judgments, judges_per_judgment = self.scenario.get_judgments()
+        self.score_vector = -np.array(self.get_majority_judgment()) + 0.5
 
-    def get_quota_rule_agenda(self, quota, proportional_quota=False):
-        """Get the agenda according to the quota rule for the current scenario.
+    def get_quota_rule_judgment(self, quota):
+        """Get the judgment according to the quota rule for the current scenario.
         The quota rule states that a variable/issue is true when at least
-        _quota_ voters think it is true.
+        _quota_ judges think it is true.
         If proportional_quota is True, then _quota_ is expected to be a
-        proportion between 0 and 1 of the voters to be True."""
-        agendas, voters_per_agenda = self.scenario.get_agendas()
-        if proportional_quota:
-            quota = quota * np.sum(voters_per_agenda)
-        return list(map(int, np.array(agendas).T @ voters_per_agenda >= quota))
+        proportion between 0 and 1 of the judges to be True."""
+        judgments, judges_per_judgment = self.scenario.get_judgments()
+        if type(quota) == float:
+            quota = quota * np.sum(judges_per_judgment)
+        return list(
+            map(int,
+                np.array(judgments).T @ judges_per_judgment >= quota))
 
-    def get_majority_agenda(self):
-        """Get the majority agenda for the current scenario.
+    def get_majority_judgment(self):
+        """Get the majority judgment for the current scenario.
         The majority rule is the same as the quota rule with 50% needed for a
         variable/issue to be True."""
-        return self.get_quota_rule_agenda(0.5, proportional_quota=True)
+        return self.get_quota_rule_judgment(0.5)
 
     def get_answers(self):
         """Return the found answers."""
