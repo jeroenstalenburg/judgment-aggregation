@@ -1,14 +1,7 @@
 from .Constraint import Constraint
-import sympy as sp
+# import sympy as sp
 import pycosat as ps
 import shlex
-
-
-def check_clause(clause, agenda):
-    for index in clause:
-        if (index < 0) ^ agenda[abs(index) - 1]:
-            return True
-    return False
 
 
 class CNF(Constraint):
@@ -18,7 +11,7 @@ class CNF(Constraint):
         self.var_amount = 0
         self.clause_amount = 0
         self.clauses = []
-        self.boolean_expression = sp.true
+        # self.boolean_expression = sp.true
         self.boolean_vars = []
         self.p_initialised = False
 
@@ -58,7 +51,7 @@ class CNF(Constraint):
     def load_p_line(self, *args):
         if self.p_initialised:
             self.throw_error("May not redefine amount of issues and "
-                             "voters in the middle of a cnf file")
+                             "judges in the middle of a cnf file")
         if args[0] != "cnf":
             self.throw_error("The given file is not a scenario file")
         if len(args) != 3:
@@ -103,20 +96,25 @@ class CNF(Constraint):
         # self.boolean_lambda = None
         self.clauses_loaded += 1
 
-    def check_agenda(self, agenda):
-        """Return True if the agenda satisfies the current costraint"""
+    def check_clause(self, clause, judgment):
+        """Return True if any of the elements of the clause are True."""
+        for index in clause:
+            if (index < 0) ^ judgment[abs(index) - 1]:
+                return True
+        return False
+
+    def check_judgment(self, judgment):
+        """Return True if the judgment satisfies the current costraint"""
         for clause in self.clauses:
-            if not check_clause(clause, agenda):
+            if not self.check_clause(clause, judgment):
                 return False
         return True
 
-    def generate_all_valid_agendas(self):
-        """Generate all valid agendas according to the current constraint"""
+    def generate_all_valid_judgments(self):
+        """Generate all valid judgments according to the current constraint"""
         self.check_initialised()
-        if getattr(self, 'var_amount', -1) == -1:
-            self.throw_error("The amount of agenda variables has not been set")
-        for agenda in ps.itersolve(self.clauses, vars=self.var_amount):
-            yield list(map(lambda x: int(x > 0), agenda))
+        for judgment in ps.itersolve(self.clauses, vars=self.var_amount):
+            yield list(map(lambda x: int(x > 0), judgment))
 
     def get_var_amount(self):
         """Get the var amount of the current constraint"""
