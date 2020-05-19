@@ -9,7 +9,7 @@ setup(
     author_email='jeroenstalenburg@gmail.com',
     license='Apache',
     packages=['judgment_aggregation'],
-    install_requires=['pycosat'],
+    install_requires=['pycosat', 'pandas', 'matplotlib', 'numpy'],
     zip_safe=False,
     test_suite='nose.collector',
     tests_require=['nose'],
